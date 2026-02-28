@@ -195,6 +195,13 @@
             color: #333;
             margin-bottom: 8px;
         }
+        .summary-team a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+        .summary-team a:hover {
+            text-decoration: underline;
+        }
         .summary-issues {
             margin: 0;
             padding-left: 20px;
@@ -499,7 +506,7 @@
             const hasIssues = teamHasIssues(teamData);
             
             return `
-                <div class="team-card">
+                <div class="team-card" id="team-${teamNumber}" data-has-issues="${hasIssues}">
                     <div class="team-header ${hasIssues ? 'has-issues' : ''}" onclick="toggleTeam(this)">
                         <span>Team ${teamNumber}: ${teamName}</span>
                         <span class="toggle-icon">&#9660;</span>
@@ -542,6 +549,34 @@
             document.querySelectorAll('.team-content').forEach(content => {
                 content.classList.add('collapsed');
             });
+        }
+
+        function showAllTeams() {
+            document.querySelectorAll('.team-card').forEach(card => {
+                card.style.display = '';
+            });
+        }
+
+        function showIssuesOnly() {
+            document.querySelectorAll('.team-card').forEach(card => {
+                if (card.dataset.hasIssues === 'true') {
+                    card.style.display = '';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function scrollToTeam(teamNumber) {
+            const teamCard = document.getElementById('team-' + teamNumber);
+            if (teamCard) {
+                teamCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Expand the team if collapsed
+                const header = teamCard.querySelector('.team-header');
+                const content = teamCard.querySelector('.team-content');
+                header.classList.remove('collapsed');
+                content.classList.remove('collapsed');
+            }
         }
 
         async function fetchScores() {
@@ -670,7 +705,7 @@
                             <div class="summary-list">
                                 ${issueDetails.map(item => `
                                     <div class="summary-item">
-                                        <div class="summary-team">Team ${item.teamNumber}: ${item.teamName}</div>
+                                        <div class="summary-team"><a href="#team-${item.teamNumber}" onclick="scrollToTeam('${item.teamNumber}'); return false;">Team ${item.teamNumber}: ${item.teamName}</a></div>
                                         <ul class="summary-issues">
                                             ${item.issues.map(issue => `<li>${issue}</li>`).join('')}
                                         </ul>
@@ -691,8 +726,10 @@
                 // Add controls bar
                 html += `
                     <div class="controls-bar">
-                        <button onclick="expandAllTeams()">Expand All Teams</button>
-                        <button onclick="collapseAllTeams()">Collapse All Teams</button>
+                        <button onclick="expandAllTeams()">Expand All</button>
+                        <button onclick="collapseAllTeams()">Collapse All</button>
+                        <button onclick="showIssuesOnly()">Show Issues Only</button>
+                        <button onclick="showAllTeams()">Show All Teams</button>
                     </div>
                 `;
                 
