@@ -322,12 +322,13 @@
             return parseCSV(text);
         }
 
-        function createScoreItem(label, value) {
+        function createScoreItem(label, value, highlightZero = false) {
             const isMissing = value === '' || value === null || value === undefined;
             const isFour = value === '4';
+            const isZeroIssue = highlightZero && value === '0';
             
             let className = 'score-item';
-            if (isMissing) className += ' missing';
+            if (isMissing || isZeroIssue) className += ' missing';
             else if (isFour) className += ' score-four';
             
             return `
@@ -338,9 +339,23 @@
             `;
         }
 
+        function categoryHasAllZeros(scores, fields) {
+            if (!scores) return false;
+            const fieldKeys = Object.keys(fields);
+            return fieldKeys.every(field => scores[field] === '0');
+        }
+
+        function categoryHasSomeZeros(scores, fields) {
+            if (!scores) return false;
+            const fieldKeys = Object.keys(fields);
+            const hasZero = fieldKeys.some(field => scores[field] === '0');
+            const hasNonZero = fieldKeys.some(field => scores[field] !== '0' && scores[field] !== '' && scores[field] !== null && scores[field] !== undefined);
+            return hasZero && hasNonZero;
+        }
+
         function createCategorySection(categoryKey, scores) {
             const category = CATEGORY_LABELS[categoryKey];
-            if (!scores) {
+            if (!scores || categoryHasAllZeros(scores, category.fields)) {
                 return `
                     <div class="category">
                         <div class="category-title">${category.name}</div>
@@ -353,8 +368,9 @@
                 `;
             }
             
+            const highlightZero = categoryHasSomeZeros(scores, category.fields);
             const scoreItems = Object.entries(category.fields)
-                .map(([field, label]) => createScoreItem(label, scores[field]))
+                .map(([field, label]) => createScoreItem(label, scores[field], highlightZero))
                 .join('');
             
             return `
@@ -368,12 +384,20 @@
         function teamHasIssues(teamData) {
             for (const categoryKey of ['innovation', 'core_values', 'robot_design']) {
                 const scores = teamData[categoryKey];
-                if (!scores) return true;
-                
                 const fields = CATEGORY_LABELS[categoryKey].fields;
+                
+                // No data
+                if (!scores || categoryHasAllZeros(scores, fields)) return true;
+                
+                // Check for issues: score of 4, empty values, or zeros mixed with real scores
+                const hasSomeZeros = categoryHasSomeZeros(scores, fields);
+                
                 for (const field of Object.keys(fields)) {
                     const value = scores[field];
                     if (value === '' || value === null || value === undefined || value === '4') {
+                        return true;
+                    }
+                    if (hasSomeZeros && value === '0') {
                         return true;
                     }
                 }
@@ -461,8 +485,17 @@
                         }
                         
                         const fields = CATEGORY_LABELS[categoryKey].fields;
+                        
+                        // Check if all zeros (no data entered)
+                        if (categoryHasAllZeros(scores, fields)) {
+                            issues.push(`${categoryName}: NO DATA`);
+                            continue;
+                        }
+                        
                         const missing = [];
+                        const zeros = [];
                         const fours = [];
+                        const hasSomeZeros = categoryHasSomeZeros(scores, fields);
                         
                         for (const [field, label] of Object.entries(fields)) {
                             const value = scores[field];
@@ -470,11 +503,16 @@
                                 missing.push(label);
                             } else if (value === '4') {
                                 fours.push(label);
+                            } else if (hasSomeZeros && value === '0') {
+                                zeros.push(label);
                             }
                         }
                         
                         if (missing.length > 0) {
                             issues.push(`${categoryName} - Missing: ${missing.join(', ')}`);
+                        }
+                        if (zeros.length > 0) {
+                            issues.push(`${categoryName} - Score 0: ${zeros.join(', ')}`);
                         }
                         if (fours.length > 0) {
                             issues.push(`${categoryName} - Score 4: ${fours.join(', ')}`);
