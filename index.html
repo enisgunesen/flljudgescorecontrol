@@ -171,6 +171,53 @@
         #results {
             margin-top: 20px;
         }
+        .summary-section {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .summary-section h2 {
+            margin: 0 0 15px 0;
+            color: #e65100;
+            font-size: 18px;
+        }
+        .summary-section.summary-ok {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+        .summary-section.summary-ok h2 {
+            color: #2e7d32;
+        }
+        .summary-section.summary-ok p {
+            margin: 0;
+            color: #2e7d32;
+        }
+        .summary-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .summary-item {
+            background: white;
+            border-radius: 4px;
+            padding: 12px;
+        }
+        .summary-team {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .summary-issues {
+            margin: 0;
+            padding-left: 20px;
+            color: #666;
+            font-size: 13px;
+        }
+        .summary-issues li {
+            margin-bottom: 4px;
+        }
     </style>
 </head>
 <body>
@@ -401,6 +448,45 @@
                 // Sort teams by number
                 const sortedTeamNumbers = Object.keys(teams).sort((a, b) => parseInt(a) - parseInt(b));
                 
+                // Build summary of teams with issues
+                const teamsWithIssues = sortedTeamNumbers.filter(teamNumber => teamHasIssues(teams[teamNumber]));
+                const issueDetails = teamsWithIssues.map(teamNumber => {
+                    const teamData = teams[teamNumber];
+                    const issues = [];
+                    
+                    for (const categoryKey of ['innovation', 'core_values', 'robot_design']) {
+                        const scores = teamData[categoryKey];
+                        const categoryName = CATEGORY_LABELS[categoryKey].name;
+                        
+                        if (!scores) {
+                            issues.push(`${categoryName}: NO DATA`);
+                            continue;
+                        }
+                        
+                        const fields = CATEGORY_LABELS[categoryKey].fields;
+                        const missing = [];
+                        const fours = [];
+                        
+                        for (const [field, label] of Object.entries(fields)) {
+                            const value = scores[field];
+                            if (value === '' || value === null || value === undefined) {
+                                missing.push(label);
+                            } else if (value === '4') {
+                                fours.push(label);
+                            }
+                        }
+                        
+                        if (missing.length > 0) {
+                            issues.push(`${categoryName} - Missing: ${missing.join(', ')}`);
+                        }
+                        if (fours.length > 0) {
+                            issues.push(`${categoryName} - Score 4: ${fours.join(', ')}`);
+                        }
+                    }
+                    
+                    return { teamNumber, teamName: teamData.name, issues };
+                });
+                
                 // Render
                 let html = `
                     <div class="legend">
@@ -414,6 +500,32 @@
                         </div>
                     </div>
                 `;
+                
+                // Add summary section
+                if (issueDetails.length > 0) {
+                    html += `
+                        <div class="summary-section">
+                            <h2>Teams Requiring Attention (${issueDetails.length})</h2>
+                            <div class="summary-list">
+                                ${issueDetails.map(item => `
+                                    <div class="summary-item">
+                                        <div class="summary-team">Team ${item.teamNumber}: ${item.teamName}</div>
+                                        <ul class="summary-issues">
+                                            ${item.issues.map(issue => `<li>${issue}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="summary-section summary-ok">
+                            <h2>All Teams OK</h2>
+                            <p>No missing scores or scores of 4 found.</p>
+                        </div>
+                    `;
+                }
                 
                 sortedTeamNumbers.forEach(teamNumber => {
                     const teamData = teams[teamNumber];
