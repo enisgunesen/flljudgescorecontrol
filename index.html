@@ -191,11 +191,6 @@
     <div id="results"></div>
 
     <script>
-        // Use the Vercel proxy at /api/proxy/
-        function getApiBase() {
-            return '/api/proxy/judge_rubric_export';
-        }
-        
         const CATEGORY_LABELS = {
             innovation: {
                 name: 'Innovation Project',
@@ -267,8 +262,8 @@
         }
 
         async function fetchCategory(eventId, token, category) {
-            const apiBase = getApiBase();
-            const response = await fetch(`${apiBase}/${eventId}/${category}`, {
+            const path = `judge_rubric_export/${eventId}/${category}`;
+            const response = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`, {
                 headers: {
                     'Accept': 'application/json, text/plain, */*',
                     'Authorization': `Bearer ${token}`

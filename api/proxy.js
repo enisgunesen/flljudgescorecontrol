@@ -5,19 +5,19 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
 
-  // Get the path after /api/proxy/
-  const { path } = req.query;
-  if (!path || path.length === 0) {
-    return res.status(400).json({ error: 'Missing path' });
+  // Get the target path from query parameter
+  const targetPath = req.query.path;
+  if (!targetPath) {
+    return res.status(400).json({ error: 'Missing path parameter' });
   }
 
-  const targetPath = Array.isArray(path) ? path.join('/') : path;
   const targetUrl = `https://o76fno8oxh.execute-api.eu-central-1.amazonaws.com/api/${targetPath}`;
 
   try {
@@ -30,7 +30,8 @@ export default async function handler(req, res) {
     });
 
     const data = await response.text();
-    res.setHeader('Content-Type', response.headers.get('Content-Type') || 'text/plain');
+    const contentType = response.headers.get('Content-Type') || 'text/plain';
+    res.setHeader('Content-Type', contentType);
     return res.status(response.status).send(data);
   } catch (error) {
     return res.status(502).json({ error: 'Proxy Error: ' + error.message });
