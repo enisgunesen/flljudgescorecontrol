@@ -405,6 +405,20 @@
             return false;
         }
 
+        function categoryHasNoData(scores, fields) {
+            return !scores || categoryHasAllZeros(scores, fields);
+        }
+
+        function teamHasNoDataAtAll(teamData) {
+            // Returns true if ALL 3 categories have no data
+            const categories = ['innovation', 'core_values', 'robot_design'];
+            return categories.every(categoryKey => {
+                const scores = teamData[categoryKey];
+                const fields = CATEGORY_LABELS[categoryKey].fields;
+                return categoryHasNoData(scores, fields);
+            });
+        }
+
         function createTeamCard(teamNumber, teamName, teamData) {
             const hasIssues = teamHasIssues(teamData);
             
@@ -469,8 +483,10 @@
                 // Sort teams by number
                 const sortedTeamNumbers = Object.keys(teams).sort((a, b) => parseInt(a) - parseInt(b));
                 
-                // Build summary of teams with issues
-                const teamsWithIssues = sortedTeamNumbers.filter(teamNumber => teamHasIssues(teams[teamNumber]));
+                // Build summary of teams with issues (exclude teams with no data in all 3 categories)
+                const teamsWithIssues = sortedTeamNumbers.filter(teamNumber => 
+                    teamHasIssues(teams[teamNumber]) && !teamHasNoDataAtAll(teams[teamNumber])
+                );
                 const issueDetails = teamsWithIssues.map(teamNumber => {
                     const teamData = teams[teamNumber];
                     const issues = [];
