@@ -178,6 +178,10 @@
     
     <div class="input-section">
         <div class="input-group">
+            <label for="proxyUrl">Proxy URL (your Cloudflare Worker):</label>
+            <input type="text" id="proxyUrl" placeholder="e.g., https://your-worker.your-subdomain.workers.dev">
+        </div>
+        <div class="input-group">
             <label for="eventId">Event ID:</label>
             <input type="text" id="eventId" placeholder="Enter Event ID">
         </div>
@@ -191,7 +195,17 @@
     <div id="results"></div>
 
     <script>
-        const API_BASE = 'https://o76fno8oxh.execute-api.eu-central-1.amazonaws.com/api/judge_rubric_export';
+        const ORIGINAL_API = 'https://o76fno8oxh.execute-api.eu-central-1.amazonaws.com';
+        
+        function getApiBase() {
+            const proxyUrl = document.getElementById('proxyUrl').value.trim();
+            if (proxyUrl) {
+                // Use proxy - it forwards /api/* paths to the original API
+                return proxyUrl.replace(/\/$/, '') + '/api/judge_rubric_export';
+            }
+            // Direct API (won't work due to CORS)
+            return ORIGINAL_API + '/api/judge_rubric_export';
+        }
         
         const CATEGORY_LABELS = {
             innovation: {
@@ -264,7 +278,8 @@
         }
 
         async function fetchCategory(eventId, token, category) {
-            const response = await fetch(`${API_BASE}/${eventId}/${category}`, {
+            const apiBase = getApiBase();
+            const response = await fetch(`${apiBase}/${eventId}/${category}`, {
                 headers: {
                     'Accept': 'application/json, text/plain, */*',
                     'Authorization': `Bearer ${token}`
@@ -354,6 +369,7 @@
         }
 
         async function fetchScores() {
+            const proxyUrl = document.getElementById('proxyUrl').value.trim();
             const eventId = document.getElementById('eventId').value.trim();
             const token = document.getElementById('token').value.trim();
             const resultsDiv = document.getElementById('results');
@@ -361,6 +377,11 @@
             
             if (!eventId || !token) {
                 resultsDiv.innerHTML = '<div class="error">Please enter both Event ID and Bearer Token.</div>';
+                return;
+            }
+            
+            if (!proxyUrl) {
+                resultsDiv.innerHTML = '<div class="error">Proxy URL is required. Deploy the Cloudflare Worker and enter its URL.</div>';
                 return;
             }
             
