@@ -19,13 +19,6 @@
             color: #333;
             text-align: center;
         }
-        .input-section {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
         .input-group {
             margin-bottom: 15px;
         }
@@ -82,13 +75,6 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             margin-bottom: 20px;
             overflow: hidden;
-        }
-        .team-header {
-            background: #0066cc;
-            color: white;
-            padding: 15px 20px;
-            font-size: 18px;
-            font-weight: 600;
         }
         .team-header.has-issues {
             background: #e65100;
@@ -218,21 +204,111 @@
         .summary-issues li {
             margin-bottom: 4px;
         }
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 15px 20px;
+            background: #0066cc;
+            color: white;
+            border-radius: 8px 8px 0 0;
+            user-select: none;
+        }
+        .collapsible-header:hover {
+            background: #0052a3;
+        }
+        .collapsible-header .toggle-icon {
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+        .collapsible-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+        .collapsible-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .collapsible-content.collapsed {
+            max-height: 0 !important;
+        }
+        .input-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .input-section .collapsible-content {
+            padding: 20px;
+        }
+        .input-section .collapsible-content.collapsed {
+            padding: 0;
+        }
+        .team-header {
+            background: #0066cc;
+            color: white;
+            padding: 15px 20px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .team-header:hover {
+            filter: brightness(1.1);
+        }
+        .team-header .toggle-icon {
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+        .team-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+        .team-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .team-content.collapsed {
+            max-height: 0 !important;
+        }
+        .controls-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .controls-bar button {
+            width: auto;
+            padding: 8px 16px;
+            font-size: 14px;
+            background: #666;
+        }
+        .controls-bar button:hover {
+            background: #555;
+        }
     </style>
 </head>
 <body>
     <h1>FLL Judge Scores Viewer</h1>
     
     <div class="input-section">
-        <div class="input-group">
-            <label for="eventId">Event ID:</label>
-            <input type="text" id="eventId" placeholder="Enter Event ID">
+        <div class="collapsible-header" onclick="toggleInputSection()">
+            <span>Settings</span>
+            <span class="toggle-icon">&#9660;</span>
         </div>
-        <div class="input-group">
-            <label for="token">Bearer Token:</label>
-            <input type="text" id="token" placeholder="Enter Bearer Token">
+        <div class="collapsible-content" id="inputContent">
+            <div class="input-group">
+                <label for="eventId">Event ID:</label>
+                <input type="text" id="eventId" placeholder="Enter Event ID">
+            </div>
+            <div class="input-group">
+                <label for="token">Bearer Token:</label>
+                <input type="text" id="token" placeholder="Enter Bearer Token">
+            </div>
+            <button id="fetchBtn" onclick="fetchScores()">Fetch Scores</button>
         </div>
-        <button id="fetchBtn" onclick="fetchScores()">Fetch Scores</button>
     </div>
     
     <div id="results"></div>
@@ -424,14 +500,48 @@
             
             return `
                 <div class="team-card">
-                    <div class="team-header ${hasIssues ? 'has-issues' : ''}">
-                        Team ${teamNumber}: ${teamName}
+                    <div class="team-header ${hasIssues ? 'has-issues' : ''}" onclick="toggleTeam(this)">
+                        <span>Team ${teamNumber}: ${teamName}</span>
+                        <span class="toggle-icon">&#9660;</span>
                     </div>
-                    ${createCategorySection('innovation', teamData.innovation)}
-                    ${createCategorySection('core_values', teamData.core_values)}
-                    ${createCategorySection('robot_design', teamData.robot_design)}
+                    <div class="team-content">
+                        ${createCategorySection('innovation', teamData.innovation)}
+                        ${createCategorySection('core_values', teamData.core_values)}
+                        ${createCategorySection('robot_design', teamData.robot_design)}
+                    </div>
                 </div>
             `;
+        }
+
+        function toggleInputSection() {
+            const header = document.querySelector('.input-section .collapsible-header');
+            const content = document.getElementById('inputContent');
+            header.classList.toggle('collapsed');
+            content.classList.toggle('collapsed');
+        }
+
+        function toggleTeam(headerElement) {
+            headerElement.classList.toggle('collapsed');
+            const content = headerElement.nextElementSibling;
+            content.classList.toggle('collapsed');
+        }
+
+        function expandAllTeams() {
+            document.querySelectorAll('.team-header').forEach(header => {
+                header.classList.remove('collapsed');
+            });
+            document.querySelectorAll('.team-content').forEach(content => {
+                content.classList.remove('collapsed');
+            });
+        }
+
+        function collapseAllTeams() {
+            document.querySelectorAll('.team-header').forEach(header => {
+                header.classList.add('collapsed');
+            });
+            document.querySelectorAll('.team-content').forEach(content => {
+                content.classList.add('collapsed');
+            });
         }
 
         async function fetchScores() {
@@ -577,6 +687,14 @@
                         </div>
                     `;
                 }
+                
+                // Add controls bar
+                html += `
+                    <div class="controls-bar">
+                        <button onclick="expandAllTeams()">Expand All Teams</button>
+                        <button onclick="collapseAllTeams()">Collapse All Teams</button>
+                    </div>
+                `;
                 
                 sortedTeamNumbers.forEach(teamNumber => {
                     const teamData = teams[teamNumber];
