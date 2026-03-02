@@ -295,6 +295,12 @@
         .controls-bar button:hover {
             background: #555;
         }
+        .action-bar #fetchBtn {
+            background: #0066cc;
+        }
+        .action-bar #fetchBtn:hover {
+            background: #0052a3;
+        }
     </style>
 </head>
 <body>
@@ -314,13 +320,58 @@
                 <label for="token">Bearer Token:</label>
                 <input type="text" id="token" placeholder="Enter Bearer Token">
             </div>
-            <button id="fetchBtn" onclick="fetchScores()">Fetch Scores</button>
+            <button onclick="saveSettingsFromUI()">Save Settings</button>
         </div>
+    </div>
+    
+    <div class="action-bar">
+        <button id="fetchBtn" onclick="fetchScores()">Fetch Scores</button>
     </div>
     
     <div id="results"></div>
 
     <script>
+        // localStorage helpers with 18-hour expiration
+        const STORAGE_KEY = 'fll_judge_settings';
+        const EXPIRATION_HOURS = 18;
+
+        function saveSettings(eventId, token) {
+            const data = {
+                eventId,
+                token,
+                expiry: Date.now() + (EXPIRATION_HOURS * 60 * 60 * 1000)
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function saveSettingsFromUI() {
+            const eventId = document.getElementById('eventId').value.trim();
+            const token = document.getElementById('token').value.trim();
+            if (eventId && token) {
+                saveSettings(eventId, token);
+                alert('Settings saved!');
+            } else {
+                alert('Please enter both Event ID and Bearer Token.');
+            }
+        }
+
+        function loadSettings() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                if (!stored) return null;
+                
+                const data = JSON.parse(stored);
+                if (Date.now() > data.expiry) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return null;
+                }
+                return { eventId: data.eventId, token: data.token };
+            } catch (e) {
+                localStorage.removeItem(STORAGE_KEY);
+                return null;
+            }
+        }
+
         const CATEGORY_LABELS = {
             innovation: {
                 name: 'Innovation Project',
@@ -746,6 +797,23 @@
                 fetchBtn.disabled = false;
             }
         }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const settings = loadSettings();
+            if (settings) {
+                document.getElementById('eventId').value = settings.eventId;
+                document.getElementById('token').value = settings.token;
+                
+                // Collapse settings if both values are filled
+                if (settings.eventId && settings.token) {
+                    const header = document.querySelector('.input-section .collapsible-header');
+                    const content = document.getElementById('inputContent');
+                    header.classList.add('collapsed');
+                    content.classList.add('collapsed');
+                }
+            }
+        });
     </script>
 </body>
 </html>
