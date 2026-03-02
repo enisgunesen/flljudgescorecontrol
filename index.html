@@ -351,6 +351,7 @@
                 // Strip "Bearer " prefix if present
                 if (token.startsWith('Bearer ')) {
                     token = token.substring(7);
+                    document.getElementById('token').value = token;
                 }
                 saveSettings(eventId, token);
                 alert('Settings saved!');
