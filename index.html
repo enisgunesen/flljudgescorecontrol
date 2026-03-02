@@ -346,8 +346,12 @@
 
         function saveSettingsFromUI() {
             const eventId = document.getElementById('eventId').value.trim();
-            const token = document.getElementById('token').value.trim();
+            let token = document.getElementById('token').value.trim();
             if (eventId && token) {
+                // Strip "Bearer " prefix if present
+                if (token.startsWith('Bearer ')) {
+                    token = token.substring(7);
+                }
                 saveSettings(eventId, token);
                 alert('Settings saved!');
             } else {
