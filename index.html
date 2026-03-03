@@ -301,6 +301,170 @@
         .action-bar #fetchBtn:hover {
             background: #0052a3;
         }
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #0066cc;
+        }
+        .tab-btn {
+            padding: 12px 24px;
+            background: #e0e0e0;
+            border: none;
+            border-radius: 8px 8px 0 0;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #666;
+            width: auto;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover {
+            background: #d0d0d0;
+        }
+        .tab-btn.active {
+            background: #0066cc;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Judging Sessions */
+        .session-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+        .session-header {
+            background: #0066cc;
+            color: white;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .session-header:hover {
+            filter: brightness(1.1);
+        }
+        .session-header .toggle-icon {
+            font-size: 12px;
+            transition: transform 0.2s;
+        }
+        .session-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+        .session-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .session-header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-icon {
+            font-size: 18px;
+            cursor: help;
+        }
+        .status-waiting {
+            color: #ffeb3b;
+        }
+        .status-progress {
+            color: #4caf50;
+        }
+        .session-content {
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .session-content.collapsed {
+            max-height: 0 !important;
+        }
+        .comments-section {
+            padding: 15px 20px;
+        }
+        .comment-category {
+            margin-bottom: 20px;
+        }
+        .comment-category:last-child {
+            margin-bottom: 0;
+        }
+        .comment-category-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #0066cc;
+        }
+        .comments-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .comment-column {
+            min-width: 0;
+        }
+        .comment-column-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+            padding: 5px 10px;
+            border-radius: 4px;
+        }
+        .comment-column.positive .comment-column-title {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .comment-column.negative .comment-column-title {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .comment-item {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .comment-column.positive .comment-item {
+            border-left: 3px solid #4caf50;
+        }
+        .comment-column.negative .comment-item {
+            border-left: 3px solid #ff9800;
+        }
+        .no-comments {
+            color: #999;
+            font-style: italic;
+            font-size: 13px;
+        }
+        .refresh-btn {
+            background: #4caf50;
+            padding: 6px 12px;
+            font-size: 12px;
+            width: auto;
+            margin-left: auto;
+        }
+        .refresh-btn:hover {
+            background: #43a047;
+        }
+        .session-loading {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -324,11 +488,27 @@
         </div>
     </div>
     
-    <div class="action-bar">
-        <button id="fetchBtn" onclick="fetchScores()">Fetch Scores</button>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('scores')">Scores</button>
+        <button class="tab-btn" onclick="switchTab('judging')">Judging Sessions</button>
     </div>
-    
-    <div id="results"></div>
+
+    <div id="tab-scores" class="tab-content active">
+        <div class="action-bar">
+            <button id="fetchBtn" onclick="fetchScores()">Fetch Scores</button>
+        </div>
+        <div id="results"></div>
+    </div>
+
+    <div id="tab-judging" class="tab-content">
+        <div class="controls-bar">
+            <button onclick="fetchJudgingSessions()">Fetch Sessions</button>
+            <button onclick="loadAllRubrics()" id="loadAllRubricsBtn" style="display:none;">Load All Rubrics</button>
+            <button onclick="expandAllSessions()">Expand All</button>
+            <button onclick="collapseAllSessions()">Collapse All</button>
+        </div>
+        <div id="judging-results"></div>
+    </div>
 
     <script>
         // localStorage helpers with 18-hour expiration
@@ -801,6 +981,271 @@
             } finally {
                 fetchBtn.disabled = false;
             }
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+
+        // Judging Sessions
+        let cachedScheduleId = null;
+        let judgingSessionsData = [];
+        let rubricLoadedMap = {};
+
+        async function getScheduleId(eventId, token) {
+            if (cachedScheduleId) return cachedScheduleId;
+            
+            const response = await fetch(`/api/proxy?path=${encodeURIComponent('events/' + eventId)}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch event details: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            cachedScheduleId = data.data.relationships.schedule.data.id;
+            return cachedScheduleId;
+        }
+
+        async function fetchJudgingSessions() {
+            const eventId = document.getElementById('eventId').value.trim();
+            const token = document.getElementById('token').value.trim();
+            const resultsDiv = document.getElementById('judging-results');
+            
+            if (!eventId || !token) {
+                resultsDiv.innerHTML = '<div class="error">Please enter both Event ID and Bearer Token in Settings.</div>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="loading">Fetching judging sessions...</div>';
+            
+            try {
+                const scheduleId = await getScheduleId(eventId, token);
+                const path = `schedules/${scheduleId}/judging_sessions?page[size]=500&page[number]=1`;
+                
+                const response = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch judging sessions: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                judgingSessionsData = data.judging_sessions || [];
+                rubricLoadedMap = {};
+                
+                // Sort by team number
+                judgingSessionsData.sort((a, b) => {
+                    const numA = parseInt(a.team?.teamNumber) || 0;
+                    const numB = parseInt(b.team?.teamNumber) || 0;
+                    return numA - numB;
+                });
+                
+                renderJudgingSessions();
+                document.getElementById('loadAllRubricsBtn').style.display = 'inline-block';
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function getStatusIcon(status) {
+            if (!status) return '';
+            if (status.startsWith('Waiting')) {
+                return '<span class="status-icon status-waiting" title="' + status + '">&#9203;</span>';
+            } else if (status === 'Review in-progress') {
+                return '<span class="status-icon status-progress" title="Review in-progress">&#9889;</span>';
+            }
+            return '';
+        }
+
+        function renderJudgingSessions() {
+            const resultsDiv = document.getElementById('judging-results');
+            
+            if (judgingSessionsData.length === 0) {
+                resultsDiv.innerHTML = '<div class="loading">No judging sessions found.</div>';
+                return;
+            }
+            
+            let html = '';
+            judgingSessionsData.forEach(session => {
+                const teamNumber = session.team?.teamNumber || 'N/A';
+                const teamName = session.team?.name || 'Unknown Team';
+                const statusIcon = getStatusIcon(session.sessionStatus);
+                const hasRubric = rubricLoadedMap[session.id];
+                
+                html += `
+                    <div class="session-card" id="session-${session.id}">
+                        <div class="session-header" onclick="toggleSession(this)">
+                            <div class="session-header-left">
+                                <span class="toggle-icon">&#9660;</span>
+                                <span>Team ${teamNumber}: ${teamName}</span>
+                                ${statusIcon}
+                            </div>
+                            <div class="session-header-right">
+                                ${hasRubric ? '<button class="refresh-btn" onclick="event.stopPropagation(); loadSingleRubric(\'' + session.id + '\')">Refresh</button>' : ''}
+                            </div>
+                        </div>
+                        <div class="session-content" id="session-content-${session.id}">
+                            ${hasRubric ? renderRubricComments(rubricLoadedMap[session.id]) : '<div class="session-loading">Click "Load All Rubrics" to load comments</div>'}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsDiv.innerHTML = html;
+        }
+
+        function renderRubricComments(comments) {
+            const SECTION_NAMES = {
+                cv: 'Core Values',
+                ip: 'Innovation Project',
+                rd: 'Robot Design'
+            };
+            const SECTION_ORDER = ['cv', 'ip', 'rd'];
+            
+            // Group by section and type
+            const grouped = {};
+            SECTION_ORDER.forEach(section => {
+                grouped[section] = { positive: [], negative: [] };
+            });
+            
+            comments.forEach(item => {
+                const attr = item.attributes;
+                if (grouped[attr.comment_section]) {
+                    grouped[attr.comment_section][attr.comment_type].push(attr.comment);
+                }
+            });
+            
+            let html = '<div class="comments-section">';
+            
+            SECTION_ORDER.forEach(section => {
+                const positives = grouped[section].positive;
+                const negatives = grouped[section].negative;
+                
+                html += `
+                    <div class="comment-category">
+                        <div class="comment-category-title">${SECTION_NAMES[section]}</div>
+                        <div class="comments-grid">
+                            <div class="comment-column positive">
+                                <div class="comment-column-title">Great Job</div>
+                                ${positives.length > 0 
+                                    ? positives.map(c => `<div class="comment-item">${escapeHtml(c)}</div>`).join('') 
+                                    : '<div class="no-comments">No comments</div>'}
+                            </div>
+                            <div class="comment-column negative">
+                                <div class="comment-column-title">Think About</div>
+                                ${negatives.length > 0 
+                                    ? negatives.map(c => `<div class="comment-item">${escapeHtml(c)}</div>`).join('') 
+                                    : '<div class="no-comments">No comments</div>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function loadAllRubrics() {
+            const eventId = document.getElementById('eventId').value.trim();
+            const token = document.getElementById('token').value.trim();
+            
+            if (!eventId || !token || judgingSessionsData.length === 0) return;
+            
+            const btn = document.getElementById('loadAllRubricsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+            
+            try {
+                for (const session of judgingSessionsData) {
+                    await loadRubricForSession(eventId, token, session.id);
+                }
+                renderJudgingSessions();
+            } catch (error) {
+                console.error('Error loading rubrics:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Load All Rubrics';
+            }
+        }
+
+        async function loadSingleRubric(sessionId) {
+            const eventId = document.getElementById('eventId').value.trim();
+            const token = document.getElementById('token').value.trim();
+            
+            if (!eventId || !token) return;
+            
+            const contentDiv = document.getElementById('session-content-' + sessionId);
+            contentDiv.innerHTML = '<div class="session-loading">Loading...</div>';
+            
+            try {
+                await loadRubricForSession(eventId, token, sessionId);
+                contentDiv.innerHTML = renderRubricComments(rubricLoadedMap[sessionId]);
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="error">Error loading rubric: ${error.message}</div>`;
+            }
+        }
+
+        async function loadRubricForSession(eventId, token, sessionId) {
+            const path = `event-overview/${eventId}/rubric/${sessionId}`;
+            
+            const response = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch rubric: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            rubricLoadedMap[sessionId] = data.data || [];
+        }
+
+        function toggleSession(headerElement) {
+            headerElement.classList.toggle('collapsed');
+            const content = headerElement.nextElementSibling;
+            content.classList.toggle('collapsed');
+        }
+
+        function expandAllSessions() {
+            document.querySelectorAll('.session-header').forEach(header => {
+                header.classList.remove('collapsed');
+            });
+            document.querySelectorAll('.session-content').forEach(content => {
+                content.classList.remove('collapsed');
+            });
+        }
+
+        function collapseAllSessions() {
+            document.querySelectorAll('.session-header').forEach(header => {
+                header.classList.add('collapsed');
+            });
+            document.querySelectorAll('.session-content').forEach(content => {
+                content.classList.add('collapsed');
+            });
         }
 
         // Initialize on page load
