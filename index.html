@@ -1111,6 +1111,7 @@
                 const teamName = session.teamName;
                 const statusIcon = getStatusIcon(session.sessionStatus);
                 const hasRubric = rubricLoadedMap[session.id];
+                const buttonLabel = hasRubric ? 'Refresh' : 'Load';
                 
                 html += `
                     <div class="session-card" id="session-${session.id}">
@@ -1121,11 +1122,11 @@
                                 ${statusIcon}
                             </div>
                             <div class="session-header-right">
-                                ${hasRubric ? '<button class="refresh-btn" onclick="event.stopPropagation(); loadSingleRubric(\'' + session.id + '\')">Refresh</button>' : ''}
+                                <button class="refresh-btn" onclick="event.stopPropagation(); loadSingleRubric('${session.id}')">${buttonLabel}</button>
                             </div>
                         </div>
                         <div class="session-content" id="session-content-${session.id}">
-                            ${hasRubric ? renderRubricComments(rubricLoadedMap[session.id]) : '<div class="session-loading">Click "Load All Rubrics" to load comments</div>'}
+                            ${hasRubric ? renderRubricComments(rubricLoadedMap[session.id]) : '<div class="session-loading">Click "Load" or "Load All Rubrics" to load comments</div>'}
                         </div>
                     </div>
                 `;
@@ -1200,13 +1201,32 @@
             
             const btn = document.getElementById('loadAllRubricsBtn');
             btn.disabled = true;
-            btn.textContent = 'Loading...';
+            
+            let loaded = 0;
+            const total = judgingSessionsData.length;
+            btn.textContent = `Loading... (0/${total})`;
             
             try {
                 for (const session of judgingSessionsData) {
-                    await loadRubricForSession(eventId, token, session.id, session.judgeRubricId);
+                    try {
+                        await loadRubricForSession(eventId, token, session.id, session.judgeRubricId);
+                        // Update the individual session's content immediately
+                        const contentDiv = document.getElementById('session-content-' + session.id);
+                        if (contentDiv) {
+                            contentDiv.innerHTML = renderRubricComments(rubricLoadedMap[session.id]);
+                        }
+                        // Update button in header to show "Refresh"
+                        const sessionCard = document.getElementById('session-' + session.id);
+                        if (sessionCard) {
+                            const refreshBtn = sessionCard.querySelector('.refresh-btn');
+                            if (refreshBtn) refreshBtn.textContent = 'Refresh';
+                        }
+                    } catch (err) {
+                        console.error(`Error loading rubric for session ${session.id}:`, err);
+                    }
+                    loaded++;
+                    btn.textContent = `Loading... (${loaded}/${total})`;
                 }
-                renderJudgingSessions();
             } catch (error) {
                 console.error('Error loading rubrics:', error);
             } finally {
