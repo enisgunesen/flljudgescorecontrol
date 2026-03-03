@@ -1029,7 +1029,7 @@
             
             try {
                 const scheduleId = await getScheduleId(eventId, token);
-                const path = `schedules/${scheduleId}/judging_sessions?page[size]=500&page[number]=1`;
+                const path = `api/schedules/${scheduleId}/judging_sessions?page[size]=500&page[number]=1`;
                 
                 const response = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`, {
                     headers: {
@@ -1043,7 +1043,7 @@
                 }
                 
                 const data = await response.json();
-                judgingSessionsData = data.data || [];
+                judgingSessionsData = data.judging_sessions || [];
                 rubricLoadedMap = {};
                 
                 // Sort by team number
@@ -1221,7 +1221,7 @@
             }
             
             const data = await response.json();
-            rubricLoadedMap[sessionId] = data.data || [];
+            rubricLoadedMap[sessionId] = data.judging_sessions || [];
         }
 
         function toggleSession(headerElement) {
