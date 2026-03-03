@@ -1120,7 +1120,7 @@
                 const statusIcon = getStatusIcon(session.sessionStatus);
                 const hasRubric = rubricLoadedMap[session.id];
                 const buttonLabel = hasRubric ? 'Refresh' : 'Load';
-                const rubricUrl = `https://eventhub.firstinspires.org/event-overview/${eventId}/rubric/${session.judgeRubricId}`;
+                const rubricUrl = `https://eventhub.firstinspires.org/event-overview/${eventId}/rubric/${session.id}`;
                 
                 html += `
                     <div class="session-card" id="session-${session.id}">
