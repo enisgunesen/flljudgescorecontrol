@@ -1043,7 +1043,7 @@
                 }
                 
                 const data = await response.json();
-                judgingSessionsData = data.judging_sessions || [];
+                judgingSessionsData = data.data || [];
                 rubricLoadedMap = {};
                 
                 // Sort by team number
