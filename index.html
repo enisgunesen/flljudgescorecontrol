@@ -1029,7 +1029,7 @@
             
             try {
                 const scheduleId = await getScheduleId(eventId, token);
-                const path = `api/schedules/${scheduleId}/judging_sessions?page[size]=500&page[number]=1`;
+                const path = `schedules/${scheduleId}/judging_sessions?page[size]=500&page[number]=1`;
                 
                 const response = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`, {
                     headers: {
@@ -1042,14 +1042,40 @@
                     throw new Error(`Failed to fetch judging sessions: ${response.status}`);
                 }
                 
-                const data = await response.json();
-                judgingSessionsData = data.judging_sessions || [];
+                const responseData = await response.json();
+                
+                // Build lookup maps from included array (JSON:API format)
+                const includedMap = {};
+                (responseData.included || []).forEach(item => {
+                    if (!includedMap[item.type]) {
+                        includedMap[item.type] = {};
+                    }
+                    includedMap[item.type][item.id] = item;
+                });
+                
+                // Transform sessions with resolved team and status info
+                judgingSessionsData = (responseData.data || []).map(session => {
+                    const teamId = session.relationships?.team?.data?.id;
+                    const statusId = session.relationships?.session_status?.data?.id;
+                    
+                    const team = teamId ? includedMap.team?.[teamId] : null;
+                    const status = statusId ? includedMap.session_status?.[statusId] : null;
+                    
+                    return {
+                        id: session.id,
+                        teamNumber: team?.attributes?.team_number || 'N/A',
+                        teamName: team?.attributes?.name || 'Unknown Team',
+                        sessionStatus: status?.attributes?.name || '',
+                        judgeRubricId: session.attributes?.judgeRubricId
+                    };
+                });
+                
                 rubricLoadedMap = {};
                 
                 // Sort by team number
                 judgingSessionsData.sort((a, b) => {
-                    const numA = parseInt(a.team?.teamNumber) || 0;
-                    const numB = parseInt(b.team?.teamNumber) || 0;
+                    const numA = parseInt(a.teamNumber) || 0;
+                    const numB = parseInt(b.teamNumber) || 0;
                     return numA - numB;
                 });
                 
@@ -1081,8 +1107,8 @@
             
             let html = '';
             judgingSessionsData.forEach(session => {
-                const teamNumber = session.team?.teamNumber || 'N/A';
-                const teamName = session.team?.name || 'Unknown Team';
+                const teamNumber = session.teamNumber;
+                const teamName = session.teamName;
                 const statusIcon = getStatusIcon(session.sessionStatus);
                 const hasRubric = rubricLoadedMap[session.id];
                 
@@ -1221,7 +1247,7 @@
             }
             
             const data = await response.json();
-            rubricLoadedMap[sessionId] = data.judging_sessions || [];
+            rubricLoadedMap[sessionId] = data.data || [];
         }
 
         function toggleSession(headerElement) {
