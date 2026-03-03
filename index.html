@@ -1204,7 +1204,7 @@
             
             try {
                 for (const session of judgingSessionsData) {
-                    await loadRubricForSession(eventId, token, session.id);
+                    await loadRubricForSession(eventId, token, session.id, session.judgeRubricId);
                 }
                 renderJudgingSessions();
             } catch (error) {
@@ -1221,19 +1221,22 @@
             
             if (!eventId || !token) return;
             
+            const session = judgingSessionsData.find(s => s.id === sessionId);
+            if (!session || !session.judgeRubricId) return;
+            
             const contentDiv = document.getElementById('session-content-' + sessionId);
             contentDiv.innerHTML = '<div class="session-loading">Loading...</div>';
             
             try {
-                await loadRubricForSession(eventId, token, sessionId);
+                await loadRubricForSession(eventId, token, sessionId, session.judgeRubricId);
                 contentDiv.innerHTML = renderRubricComments(rubricLoadedMap[sessionId]);
             } catch (error) {
                 contentDiv.innerHTML = `<div class="error">Error loading rubric: ${error.message}</div>`;
             }
         }
 
-        async function loadRubricForSession(eventId, token, sessionId) {
-            const path = `event-overview/${eventId}/rubric/${sessionId}`;
+        async function loadRubricForSession(eventId, token, sessionId, judgeRubricId) {
+            const path = `judging/fll/${judgeRubricId}/judge_comments`;
             
             const response = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`, {
                 headers: {
