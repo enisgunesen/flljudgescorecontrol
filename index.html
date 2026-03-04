@@ -295,6 +295,28 @@
         .controls-bar button:hover {
             background: #555;
         }
+        .test-mode-btn {
+            background: #9c27b0 !important;
+        }
+        .test-mode-btn:hover {
+            background: #7b1fa2 !important;
+        }
+        .test-mode-btn.active {
+            background: #4caf50 !important;
+        }
+        .test-mode-btn.active:hover {
+            background: #388e3c !important;
+        }
+        .test-mode-banner {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px 15px;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            text-align: center;
+        }
         .action-bar #fetchBtn {
             background: #0066cc;
         }
@@ -517,10 +539,83 @@
             <button onclick="expandAllSessions()">Expand All</button>
             <button onclick="collapseAllSessions()">Collapse All</button>
         </div>
+        <div id="testModeBanner" class="test-mode-banner" style="display:none;">⚠️ TEST MODE ACTIVE - Using mock data</div>
         <div id="judging-results"></div>
     </div>
 
     <script>
+        // Test Mode
+        let testModeEnabled = false;
+        
+        // Mock data for testing
+        const MOCK_SESSIONS = [
+            { id: 'test-session-1', teamNumber: '1001', teamName: 'Test Team OK', sessionStatus: 'Waiting for scores', judgeRubricId: 'rubric-1' },
+            { id: 'test-session-2', teamNumber: '1002', teamName: 'Test Team Missing Comments', sessionStatus: 'Review in-progress', judgeRubricId: 'rubric-2' },
+            { id: 'test-session-3', teamNumber: '1003', teamName: 'Test Team Short Comments', sessionStatus: 'Waiting for scores', judgeRubricId: 'rubric-3' },
+            { id: 'test-session-4', teamNumber: '1004', teamName: 'Test Team All Missing', sessionStatus: 'Waiting for scores', judgeRubricId: 'rubric-4' },
+            { id: 'test-session-5', teamNumber: '1005', teamName: 'Test Team Mixed Issues', sessionStatus: 'Waiting for scores', judgeRubricId: 'rubric-5' }
+        ];
+        
+        const MOCK_RUBRICS = {
+            'test-session-1': [
+                // All 6 comments present, all long enough
+                { attributes: { comment_section: 'cv', comment_type: 'positive', comment: 'Great teamwork and collaboration throughout the session' } },
+                { attributes: { comment_section: 'cv', comment_type: 'negative', comment: 'Could improve on including all team members in decisions' } },
+                { attributes: { comment_section: 'ip', comment_type: 'positive', comment: 'Excellent innovative solution to a real-world problem' } },
+                { attributes: { comment_section: 'ip', comment_type: 'negative', comment: 'Research could be more thorough and documented' } },
+                { attributes: { comment_section: 'rd', comment_type: 'positive', comment: 'Robot design shows good engineering principles and creativity' } },
+                { attributes: { comment_section: 'rd', comment_type: 'negative', comment: 'Consider adding more sensors for better accuracy' } }
+            ],
+            'test-session-2': [
+                // Missing 3 comments (cv negative, ip positive, rd negative)
+                { attributes: { comment_section: 'cv', comment_type: 'positive', comment: 'Team showed great enthusiasm and energy during presentation' } },
+                { attributes: { comment_section: 'ip', comment_type: 'negative', comment: 'Need to better explain how solution addresses the problem' } },
+                { attributes: { comment_section: 'rd', comment_type: 'positive', comment: 'Solid robot build with consistent performance' } }
+            ],
+            'test-session-3': [
+                // All present but some short comments (≤3 words)
+                { attributes: { comment_section: 'cv', comment_type: 'positive', comment: 'Good job!' } },
+                { attributes: { comment_section: 'cv', comment_type: 'negative', comment: 'Needs improvement' } },
+                { attributes: { comment_section: 'ip', comment_type: 'positive', comment: 'Creative solution to addressing community water conservation issues' } },
+                { attributes: { comment_section: 'ip', comment_type: 'negative', comment: 'Ok work' } },
+                { attributes: { comment_section: 'rd', comment_type: 'positive', comment: 'Nice design!' } },
+                { attributes: { comment_section: 'rd', comment_type: 'negative', comment: 'The robot could use better attachment mechanisms for reliability' } }
+            ],
+            'test-session-4': [
+                // All 6 comments missing - should NOT trigger alert
+            ],
+            'test-session-5': [
+                // Missing 2 comments AND has short comments
+                { attributes: { comment_section: 'cv', comment_type: 'positive', comment: 'Great!' } },
+                { attributes: { comment_section: 'cv', comment_type: 'negative', comment: 'Team communication could be significantly improved during judging' } },
+                { attributes: { comment_section: 'ip', comment_type: 'positive', comment: 'Interesting project concept with good community impact potential' } },
+                // ip negative missing
+                { attributes: { comment_section: 'rd', comment_type: 'positive', comment: 'Nice' } }
+                // rd negative missing
+            ]
+        };
+        
+        function toggleTestMode() {
+            testModeEnabled = !testModeEnabled;
+            const btn = document.getElementById('testModeBtn');
+            const banner = document.getElementById('testModeBanner');
+            
+            if (testModeEnabled) {
+                btn.textContent = 'Disable Test Mode';
+                btn.classList.add('active');
+                banner.style.display = 'block';
+            } else {
+                btn.textContent = 'Enable Test Mode';
+                btn.classList.remove('active');
+                banner.style.display = 'none';
+                // Clear test data
+                judgingSessionsData = [];
+                rubricLoadedMap = {};
+                document.getElementById('judging-results').innerHTML = '';
+                document.getElementById('loadAllRubricsBtn').style.display = 'none';
+            }
+        }
+
         // localStorage helpers with 18-hour expiration
         const STORAGE_KEY = 'fll_judge_settings';
         const EXPIRATION_HOURS = 18;
@@ -1030,6 +1125,19 @@
             const token = document.getElementById('token').value.trim();
             const resultsDiv = document.getElementById('judging-results');
             
+            // Test mode - use mock data
+            if (testModeEnabled) {
+                resultsDiv.innerHTML = '<div class="loading">Loading mock data...</div>';
+                await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
+                
+                judgingSessionsData = [...MOCK_SESSIONS];
+                rubricLoadedMap = {};
+                
+                renderJudgingSessions();
+                document.getElementById('loadAllRubricsBtn').style.display = 'inline-block';
+                return;
+            }
+            
             if (!eventId || !token) {
                 resultsDiv.innerHTML = '<div class="error">Please enter both Event ID and Bearer Token in Settings.</div>';
                 return;
@@ -1338,7 +1446,8 @@
             const eventId = document.getElementById('eventId').value.trim();
             const token = document.getElementById('token').value.trim();
             
-            if (!eventId || !token || judgingSessionsData.length === 0) return;
+            if (judgingSessionsData.length === 0) return;
+            if (!testModeEnabled && (!eventId || !token)) return;
             
             const btn = document.getElementById('loadAllRubricsBtn');
             btn.disabled = true;
@@ -1373,6 +1482,8 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Load All Rubrics';
+                // Re-render to update summary section with issues
+                renderJudgingSessions();
             }
         }
 
@@ -1380,7 +1491,7 @@
             const eventId = document.getElementById('eventId').value.trim();
             const token = document.getElementById('token').value.trim();
             
-            if (!eventId || !token) return;
+            if (!testModeEnabled && (!eventId || !token)) return;
             
             const session = judgingSessionsData.find(s => s.id === sessionId);
             if (!session || !session.judgeRubricId) return;
@@ -1391,12 +1502,37 @@
             try {
                 await loadRubricForSession(eventId, token, sessionId, session.judgeRubricId);
                 contentDiv.innerHTML = renderRubricComments(rubricLoadedMap[sessionId]);
+                
+                // Update header styling based on issues
+                const sessionCard = document.getElementById('session-' + sessionId);
+                if (sessionCard) {
+                    const header = sessionCard.querySelector('.session-header');
+                    const refreshBtn = sessionCard.querySelector('.refresh-btn');
+                    const sessionIssues = analyzeCommentIssues(session);
+                    
+                    if (sessionIssues && sessionIssues.length > 0) {
+                        header.classList.add('has-issues');
+                    } else {
+                        header.classList.remove('has-issues');
+                    }
+                    if (refreshBtn) refreshBtn.textContent = 'Refresh';
+                }
+                
+                // Re-render to update summary section
+                renderJudgingSessions();
             } catch (error) {
                 contentDiv.innerHTML = `<div class="error">Error loading rubric: ${error.message}</div>`;
             }
         }
 
         async function loadRubricForSession(eventId, token, sessionId, judgeRubricId) {
+            // Test mode - use mock data
+            if (testModeEnabled) {
+                await new Promise(resolve => setTimeout(resolve, 200)); // Simulate network delay
+                rubricLoadedMap[sessionId] = MOCK_RUBRICS[sessionId] || [];
+                return;
+            }
+            
             const path = `judging/fll/${judgeRubricId}/judge_comments`;
             
             const response = await fetch(`/api/proxy?path=${encodeURIComponent(path)}`, {
