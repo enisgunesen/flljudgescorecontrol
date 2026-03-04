@@ -353,6 +353,9 @@
             align-items: center;
             user-select: none;
         }
+        .session-header.has-issues {
+            background: #e65100;
+        }
         .session-header:hover {
             filter: brightness(1.1);
         }
@@ -1104,6 +1107,85 @@
             return '';
         }
 
+        function analyzeCommentIssues(session) {
+            const comments = rubricLoadedMap[session.id];
+            if (!comments) return null; // Not loaded yet
+            
+            const issues = [];
+            const SECTION_NAMES = {
+                cv: 'Core Values',
+                ip: 'Innovation Project',
+                rd: 'Robot Design'
+            };
+            const SECTIONS = ['cv', 'ip', 'rd'];
+            const TYPES = ['positive', 'negative'];
+            const TYPE_NAMES = { positive: 'Great Job', negative: 'Think About' };
+            
+            // Group comments by section and type
+            const grouped = {};
+            SECTIONS.forEach(s => {
+                grouped[s] = { positive: [], negative: [] };
+            });
+            
+            comments.forEach(item => {
+                const attr = item.attributes;
+                if (grouped[attr.comment_section]) {
+                    grouped[attr.comment_section][attr.comment_type].push(attr.comment);
+                }
+            });
+            
+            // Count missing comments
+            let missingCount = 0;
+            const missingList = [];
+            
+            SECTIONS.forEach(section => {
+                TYPES.forEach(type => {
+                    if (grouped[section][type].length === 0) {
+                        missingCount++;
+                        missingList.push(`${SECTION_NAMES[section]} - ${TYPE_NAMES[type]}`);
+                    }
+                });
+            });
+            
+            // Alert if 1-5 missing (not 0, not 6)
+            if (missingCount > 0 && missingCount < 6) {
+                issues.push(`Missing ${missingCount} comment(s): ${missingList.join(', ')}`);
+            }
+            
+            // Check for short comments (3 words or less)
+            const shortComments = [];
+            SECTIONS.forEach(section => {
+                TYPES.forEach(type => {
+                    grouped[section][type].forEach(comment => {
+                        const wordCount = comment.trim().split(/\s+/).filter(w => w.length > 0).length;
+                        if (wordCount <= 3 && wordCount > 0) {
+                            shortComments.push(`${SECTION_NAMES[section]} - ${TYPE_NAMES[type]}: "${comment}"`);
+                        }
+                    });
+                });
+            });
+            
+            if (shortComments.length > 0) {
+                issues.push(`Short comment(s) (≤3 words): ${shortComments.join('; ')}`);
+            }
+            
+            return issues.length > 0 ? issues : null;
+        }
+
+        function scrollToSession(sessionId) {
+            const el = document.getElementById('session-' + sessionId);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                // Expand if collapsed
+                const header = el.querySelector('.session-header');
+                const content = el.querySelector('.session-content');
+                if (header && header.classList.contains('collapsed')) {
+                    header.classList.remove('collapsed');
+                    content.classList.remove('collapsed');
+                }
+            }
+        }
+
         function renderJudgingSessions() {
             const resultsDiv = document.getElementById('judging-results');
             const eventId = document.getElementById('eventId').value.trim();
@@ -1113,7 +1195,52 @@
                 return;
             }
             
+            // Analyze issues for loaded rubrics
+            const issueDetails = [];
+            judgingSessionsData.forEach(session => {
+                const issues = analyzeCommentIssues(session);
+                if (issues) {
+                    issueDetails.push({
+                        sessionId: session.id,
+                        teamNumber: session.teamNumber,
+                        teamName: session.teamName,
+                        issues: issues
+                    });
+                }
+            });
+            
             let html = '';
+            
+            // Check if any rubrics have been loaded
+            const loadedCount = Object.keys(rubricLoadedMap).length;
+            
+            if (loadedCount > 0) {
+                // Add summary section
+                if (issueDetails.length > 0) {
+                    html += `
+                        <div class="summary-section">
+                            <h2>Teams Requiring Attention (${issueDetails.length})</h2>
+                            <div class="summary-list">
+                                ${issueDetails.map(item => `
+                                    <div class="summary-item">
+                                        <div class="summary-team"><a href="#session-${item.sessionId}" onclick="scrollToSession('${item.sessionId}'); return false;">Team ${item.teamNumber}: ${item.teamName}</a></div>
+                                        <ul class="summary-issues">
+                                            ${item.issues.map(issue => `<li>${issue}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="summary-section summary-ok">
+                            <h2>All Teams OK</h2>
+                            <p>No missing comments or short comments found.</p>
+                        </div>
+                    `;
+                }
+            }
             judgingSessionsData.forEach(session => {
                 const teamNumber = session.teamNumber;
                 const teamName = session.teamName;
@@ -1122,9 +1249,14 @@
                 const buttonLabel = hasRubric ? 'Refresh' : 'Load';
                 const rubricUrl = `https://eventhub.firstinspires.org/event-overview/${eventId}/rubric/${session.id}`;
                 
+                // Check if this session has issues
+                const sessionIssues = analyzeCommentIssues(session);
+                const hasIssues = sessionIssues && sessionIssues.length > 0;
+                const headerClass = hasIssues ? 'session-header has-issues' : 'session-header';
+                
                 html += `
                     <div class="session-card" id="session-${session.id}">
-                        <div class="session-header" onclick="toggleSession(this)">
+                        <div class="${headerClass}" onclick="toggleSession(this)">
                             <div class="session-header-left">
                                 <span class="toggle-icon">&#9660;</span>
                                 <a href="${rubricUrl}" target="_blank" onclick="event.stopPropagation()" class="team-link">Team ${teamNumber}: ${teamName}</a>
